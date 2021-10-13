@@ -55,9 +55,12 @@ pub async fn initialize(conf: Config) -> Result<Client> {
         data.insert::<OwnerKey>(owner)
     }
 
-    let guild = http.get_guild(310243609641484288).await?;
+    //If TEST_GUILD is set
+    if let Some(guild_id) = conf.test_guild {
+        let guild = http.get_guild(guild_id).await?;
+        commands::register_guild_commands(&http, guild).await?;
+    }
 
-    commands::register_guild_commands(&http, guild).await?;
     commands::register_global_commands(&http).await?;
 
     Ok(client)
