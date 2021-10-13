@@ -1,15 +1,15 @@
-use std::thread::current;
-
 use crate::bot;
 use crate::Result;
 use async_trait::async_trait;
-use serenity::builder::CreateApplicationCommand;
-use serenity::builder::CreateInteractionResponse;
+use color_eyre::Help;
+use serenity::builder::CreateApplicationCommandOption;
 use serenity::client::Context;
-use serenity::http::CacheHttp;
 use serenity::model::interactions::application_command::ApplicationCommandInteraction;
+use serenity::model::interactions::application_command::ApplicationCommandInteractionDataOptionValue;
 use serenity::model::interactions::application_command::ApplicationCommandOptionType;
+use serenity::model::interactions::InteractionResponseType;
 use tracing::instrument;
+use tracing::Instrument;
 
 use super::SlashCommand;
 
@@ -26,19 +26,16 @@ impl SlashCommand for Play {
         "play an audio clip"
     }
 
-    fn slash_command_builder(&self) -> CreateApplicationCommand {
-        CreateApplicationCommand::default()
-            .name(self.name())
-            .description(self.description())
-            //TODO Disable command in private dms by enabling perms at server join
-            // .default_permission(false)
-            .create_option(|opt| {
-                opt.kind(ApplicationCommandOptionType::String)
-                    .name("url")
-                    .description("a link to a youtube video or an audio/video file")
-                    .required(true)
-            })
-            .to_owned()
+    fn options(&self) -> Vec<CreateApplicationCommandOption> {
+        let url_opt = {
+            CreateApplicationCommandOption::default()
+                .name("url")
+                .description("a link to a youtube video or an audio/video file")
+                .kind(ApplicationCommandOptionType::String)
+                .required(true)
+                .to_owned()
+        };
+        vec![url_opt]
     }
 
     #[instrument(level = "debug", skip(ctx, command), fields(command_name))]
@@ -47,6 +44,7 @@ impl SlashCommand for Play {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<()> {
+        //Check if command came from a guild
         let guild_id = match command.guild_id {
             Some(id) => id,
             //Matches the case where the command is used from a direct message
@@ -56,21 +54,33 @@ impl SlashCommand for Play {
             }
         };
 
+        //Join the user and get the channel if valid, otherwise send error msg
         let user_id = command.user.id;
-        let call = bot::join(ctx, guild_id, user_id).await?;
+        let call = bot::join_user(ctx, guild_id, user_id).await?;
         let current_channel = call
             .lock()
             .await
             .current_channel()
             .expect("Not in a channel after joining one");
 
-        command.create_interaction_response(&ctx.http, |resp| {
-            resp
-                .kind(serenity::model::interactions::InteractionResponseType::ChannelMessageWithSource)
-                .interaction_response_data(|data| {
-                    data.content(format!("Joined <#{}>", current_channel))
-                })
-        }).await?;
+        //Parse argument and try to play the audio clip
+        if let ApplicationCommandInteractionDataOptionValue::String(url) =
+            self.get_option(command, "url")?
+        {
+            let track = songbird::ytdl(&url).await.note(format!("url={}", &url))?;
+            call.lock().await.play_source(track);
+        }
+
+        //Send msg displaying the queued audio clip
+        //TODO Change this message
+        command
+            .create_interaction_response(&ctx.http, |resp| {
+                resp.kind(InteractionResponseType::ChannelMessageWithSource)
+                    .interaction_response_data(|data| {
+                        data.content(format!("Joined <#{}>", current_channel))
+                    })
+            })
+            .await?;
 
         Ok(())
     }

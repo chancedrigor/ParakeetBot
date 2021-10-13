@@ -5,4 +5,8 @@ use thiserror::Error;
 pub enum Error {
     #[error("<@{0}> not in voice channel.")]
     NotInVoice(UserId),
+    #[error("Missing '{0}' argument.")]
+    MissingArg(String),
+    #[error("Malformed '{0} argument.")]
+    MalformedArg(String),
 }

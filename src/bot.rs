@@ -70,7 +70,11 @@ async fn get_owner(http: &Http) -> Result<User> {
 }
 
 #[instrument(level = "debug", skip(ctx))]
-pub async fn join(ctx: &Context, guild_id: GuildId, user_id: UserId) -> Result<Arc<Mutex<Call>>> {
+pub async fn join_user(
+    ctx: &Context,
+    guild_id: GuildId,
+    user_id: UserId,
+) -> Result<Arc<Mutex<Call>>> {
     let guild = ctx
         .cache
         .guild(guild_id)

@@ -14,4 +14,8 @@ impl SlashCommand for Dc {
     fn description(&self) -> &str {
         "I didn't want to stay here anyway!"
     }
+
+    fn options(&self) -> Vec<serenity::builder::CreateApplicationCommandOption> {
+        vec![]
+    }
 }
