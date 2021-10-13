@@ -1,14 +1,20 @@
+use crate::error::Error;
 use crate::Result;
 use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 use paste::paste;
 use serenity::{
-    builder::{CreateApplicationCommand, CreateInteractionResponse},
+    builder::{
+        CreateApplicationCommand, CreateApplicationCommandOption, CreateInteractionResponse,
+    },
     client::Context,
     http::Http,
     model::{
         guild::PartialGuild,
-        interactions::application_command::{ApplicationCommand, ApplicationCommandInteraction},
+        interactions::application_command::{
+            ApplicationCommand, ApplicationCommandInteraction,
+            ApplicationCommandInteractionDataOptionValue,
+        },
     },
 };
 use strum::IntoEnumIterator;
@@ -50,9 +56,10 @@ pub async fn register_global_commands(http: &Http) -> Result<()> {
         )
     })
     .await?;
+    let command_names: Vec<String> = commands.iter().map(|c| c.name.to_owned()).collect();
     info!(
-        "Globally registered the following commands: {:#?}",
-        commands
+        "Globally registered the following commands: {:?}",
+        command_names
     );
     Ok(())
 }
@@ -77,6 +84,7 @@ pub async fn register_guild_commands(http: &Http, guild: PartialGuild) -> Result
 
 #[instrument(level = "debug", skip(ctx, command), fields(command_name))]
 pub async fn handle_command(ctx: Context, command: ApplicationCommandInteraction) {
+    //Inner function that contains logic for mapping discord commands to our representation
     async fn try_handle_command(
         ctx: &Context,
         command: &ApplicationCommandInteraction,
@@ -102,6 +110,7 @@ pub async fn handle_command(ctx: Context, command: ApplicationCommandInteraction
         Ok(())
     }
 
+    //If there's an error, send msg back to user and log it
     if let Err(handle_error) = try_handle_command(&ctx, &command).await {
         if let Err(send_error) = command
             .create_interaction_response(&ctx.http, |resp| {
@@ -117,8 +126,9 @@ pub async fn handle_command(ctx: Context, command: ApplicationCommandInteraction
             })
             .await
         {
-            error!("{}", send_error);
+            error!("{:?}", send_error);
         }
+        error!("{:?}", handle_error)
     }
 }
 
@@ -131,6 +141,7 @@ pub trait SlashCommand {
         CreateApplicationCommand::default()
             .name(self.name())
             .description(self.description())
+            .set_options(self.options())
             .to_owned()
     }
     async fn slash_command_handle(
@@ -146,13 +157,30 @@ pub trait SlashCommand {
         }).await?;
         Ok(())
     }
+    fn options(&self) -> Vec<CreateApplicationCommandOption>;
+    fn get_option(
+        &self,
+        command: &ApplicationCommandInteraction,
+        name: impl ToString,
+    ) -> Result<ApplicationCommandInteractionDataOptionValue> {
+        let name = name.to_string();
+        let options = command.data.options.to_owned();
+        match options.iter().filter(|opt| opt.name == name).next() {
+            Some(ref opt) => match opt.resolved {
+                Some(ref data) => Ok(data.to_owned()),
+                None => Err(Error::MalformedArg(name).into()),
+            },
+            None => Err(Error::MissingArg(name).into()),
+        }
+    }
 }
 
 pub async fn reply_simple_msg(
     ctx: &Context,
     command: &ApplicationCommandInteraction,
-    msg: String,
+    msg: impl ToString,
 ) -> Result<()> {
+    let msg = msg.to_string();
     command
         .create_interaction_response(&ctx.http, |resp| {
             resp.kind(
