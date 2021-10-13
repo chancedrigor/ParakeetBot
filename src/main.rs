@@ -3,13 +3,14 @@ mod commands;
 mod config;
 mod error;
 
-use anyhow::Result;
+use color_eyre::Result;
 use dotenv::dotenv;
+use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
     if let Err(e) = try_main().await {
-        tracing::error!("{}", e);
+        tracing::error!("{:?}", e);
         std::process::exit(1)
     }
 }
@@ -17,10 +18,8 @@ async fn main() {
 async fn try_main() -> Result<()> {
     dotenv().ok();
 
-    tracing_subscriber::fmt::fmt()
-        .pretty()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    install_tracing();
+    color_eyre::install()?;
 
     let conf = config::Config::from_env()?;
     let mut client = bot::initialize(conf).await?;
@@ -28,4 +27,22 @@ async fn try_main() -> Result<()> {
     client.start().await?;
 
     Ok(())
+}
+
+fn install_tracing() {
+    use tracing_error::ErrorLayer;
+    use tracing_subscriber::fmt;
+    use tracing_subscriber::EnvFilter;
+
+    let fmt_layer = fmt::layer().with_target(false).pretty();
+
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("info"))
+        .unwrap();
+
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .with(ErrorLayer::default())
+        .init()
 }
