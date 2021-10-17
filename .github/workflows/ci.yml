@@ -49,6 +49,9 @@ jobs:
         toolchain: stable
         profile: minimal
         override: true
+        
+    - name: Cache
+      uses: Swatinem/rust-cache@v1
     
     - name: Cargo Doc
       uses: actions-rs/cargo@v1
