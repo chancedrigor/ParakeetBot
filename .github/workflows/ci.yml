@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    - name: Install toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        
+    - name: Cache
+      uses: Swatinem/rust-cache@v1
+      
+    - name: Cargo Build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        
+    - name: Cargo Test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+  
+  docs:
+    name: Build Docs
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    - name: Install toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+    
+    - name: Cargo Doc
+      uses: actions-rs/cargo@v1
+      with:
+        command: doc
+        args: --no-deps
