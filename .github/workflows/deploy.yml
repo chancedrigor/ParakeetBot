@@ -12,10 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
       
       # Installs rust stable toolchain for ARM64
-      - uses: actions-rs/toolchain@v1
+      - name: Toolchain
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
@@ -23,11 +25,15 @@ jobs:
           override: true
           default: true
           
-      # Use caching for faster builds
-      - uses: Swatinem/rust-cache@v1
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
 
-      - name: Make release build
-        run: cargo build --release
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+          use-cross: true
         
       - name: SCP to server
         uses: appleboy/scp-action@master
