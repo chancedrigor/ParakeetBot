@@ -9,7 +9,7 @@ on:
 jobs:
   build-deploy:
     
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, arm64]
 
     steps:
       - name: Checkout
@@ -33,7 +33,6 @@ jobs:
         with:
           command: build
           args: --release --target aarch64-unknown-linux-gnu
-          use-cross: true
         
       - name: SCP to server
         uses: garygrossgarten/github-action-scp@release
