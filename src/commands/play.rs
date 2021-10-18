@@ -9,7 +9,6 @@ use serenity::model::interactions::application_command::ApplicationCommandIntera
 use serenity::model::interactions::application_command::ApplicationCommandOptionType;
 use serenity::model::interactions::InteractionResponseType;
 use tracing::instrument;
-use tracing::Instrument;
 
 use super::SlashCommand;
 
