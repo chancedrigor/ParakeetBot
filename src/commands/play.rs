@@ -1,4 +1,5 @@
 use crate::bot;
+use crate::error::Error;
 use crate::youtube;
 use crate::Result;
 use async_trait::async_trait;
@@ -51,10 +52,7 @@ impl SlashCommand for Play {
         let guild_id = match command.guild_id {
             Some(id) => id,
             //Matches the case where the command is used from a direct message
-            None => {
-                super::reply_simple_msg(ctx, command, "Not in a server!".to_string()).await?;
-                return Ok(());
-            }
+            None => return Err(Error::NotInGuild.into()),
         };
 
         //Join the user and get the channel if valid, otherwise send error msg

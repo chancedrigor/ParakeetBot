@@ -1,4 +1,5 @@
 use crate::bot;
+use crate::error::Error;
 use crate::Result;
 
 use super::reply_simple_msg;
@@ -31,8 +32,7 @@ impl SlashCommand for Dc {
         let guild_id = match command.guild_id {
             Some(id) => id,
             None => {
-                reply_simple_msg(ctx, command, "Not in a server!").await?;
-                return Ok(());
+                return Err(Error::NotInGuild.into());
             }
         };
 

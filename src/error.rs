@@ -15,4 +15,6 @@ pub enum Error {
     NoResults(String),
     #[error("Not in a voice channel.")]
     NoCall,
+    #[error("Not in a server.")]
+    NotInGuild,
 }
