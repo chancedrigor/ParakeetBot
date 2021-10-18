@@ -13,4 +13,12 @@ pub enum Error {
     MissingEnv(String),
     #[error("No results for search query: '{0}'.")]
     NoResults(String),
+    #[error("Not in a voice channel.")]
+    NoCall,
+    #[error("Not in a server.")]
+    NotInGuild,
+    #[error("No items in queue.")]
+    EmptyQueue,
+    #[error("Audio driver failed to initialize.")]
+    MissingDriver,
 }
