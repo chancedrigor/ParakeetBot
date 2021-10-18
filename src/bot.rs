@@ -101,3 +101,17 @@ pub async fn join_user(
     result?;
     Ok(call)
 }
+
+pub async fn disconnect(ctx: &Context, guild_id: GuildId) -> Result<()> {
+    let manager = songbird::get(&ctx)
+        .await
+        .expect("Songbird initialized at startup")
+        .clone();
+
+    match manager.get(guild_id) {
+        Some(_call) => manager.remove(guild_id).await?,
+        None => return Err(Error::NoCall.into()),
+    };
+
+    Ok(())
+}
