@@ -11,4 +11,6 @@ pub enum Error {
     MalformedArg(String),
     #[error("Missing enviromental value: '{0}'.")]
     MissingEnv(String),
+    #[error("No results for search query: '{0}'.")]
+    NoResults(String),
 }
