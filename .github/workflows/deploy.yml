@@ -51,7 +51,4 @@ jobs:
           username: ${{ secrets.USERNAME }}
           privateKey: ${{ secrets.SSHKEY}}
           port: ${{ secrets.PORT }}
-          command: |
-            tmux kill-session -t
-            chmod u+x bot
-            tmux new-session -s bot-session ./bot
+          command: python3 restart.py
