@@ -9,7 +9,7 @@ use serenity::model::interactions::Interaction;
 use serenity::model::prelude::{Ready, User};
 use serenity::prelude::{Mutex, TypeMapKey};
 use serenity::{async_trait, Client};
-use songbird::{Call, SerenityInit};
+use songbird::{Call, SerenityInit, Songbird};
 use tracing::info;
 use tracing::instrument;
 
@@ -114,4 +114,19 @@ pub async fn disconnect(ctx: &Context, guild_id: GuildId) -> Result<()> {
     };
 
     Ok(())
+}
+
+pub async fn get_manager(ctx: &Context) -> Result<Arc<Songbird>> {
+    match songbird::get(ctx).await {
+        Some(s) => Ok(s),
+        None => return Err(Error::MissingDriver.into()),
+    }
+}
+
+pub async fn get_call(ctx: &Context, guild_id: GuildId) -> Result<Arc<Mutex<Call>>> {
+    let manager = get_manager(ctx).await?;
+    match manager.get(guild_id) {
+        Some(c) => Ok(c),
+        None => return Err(Error::NoCall.into()),
+    }
 }
