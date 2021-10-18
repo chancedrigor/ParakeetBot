@@ -9,7 +9,7 @@ on:
 jobs:
   build-deploy:
     
-    runs-on: [self-hosted, arm64]
+    runs-on: [self-hosted]
 
     steps:
       - name: Checkout
@@ -43,3 +43,15 @@ jobs:
           username: ${{ secrets.USERNAME }}
           privateKey: ${{ secrets.SSHKEY}}
           port: ${{ secrets.PORT }}
+
+      - name: Restart Service
+        uses: garygrossgarten/github-action-ssh@release
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          privateKey: ${{ secrets.SSHKEY}}
+          port: ${{ secrets.PORT }}
+          command: |
+            tmux kill-session -t
+            chmod u+x bot
+            tmux new-session -s bot-session ./bot
