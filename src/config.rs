@@ -1,5 +1,6 @@
+use crate::error::Error;
 use crate::Result;
-use std::env::var;
+use std::env::var as std_var;
 
 pub struct Config {
     pub token: String,
@@ -26,4 +27,9 @@ impl Config {
             app_id,
         })
     }
+}
+
+fn var(name: impl AsRef<str>) -> Result<String> {
+    let var_name = name.as_ref();
+    std_var(var_name).map_err(|_e| Error::MissingEnv(var_name.to_string()).into())
 }

@@ -4,15 +4,14 @@ use crate::error::Error;
 use crate::Result;
 use serenity::client::{Context, EventHandler};
 use serenity::http::{CacheHttp, Http};
-use serenity::model::guild::Guild;
-use serenity::model::id::{ChannelId, GuildId, UserId};
+use serenity::model::id::{GuildId, UserId};
 use serenity::model::interactions::Interaction;
 use serenity::model::prelude::{Ready, User};
 use serenity::prelude::{Mutex, TypeMapKey};
 use serenity::{async_trait, Client};
 use songbird::{Call, SerenityInit};
+use tracing::info;
 use tracing::instrument;
-use tracing::{debug, error, info};
 
 use crate::commands;
 use crate::config::Config;

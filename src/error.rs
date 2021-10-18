@@ -9,4 +9,6 @@ pub enum Error {
     MissingArg(String),
     #[error("Malformed '{0} argument.")]
     MalformedArg(String),
+    #[error("Missing enviromental value: '{0}'.")]
+    MissingEnv(String),
 }
