@@ -18,7 +18,7 @@ impl Config {
                     let v: u64 = s.parse()?;
                     Some(v)
                 }
-                Err(e) => return Err(e.into()),
+                Err(_) => None,
             }
         };
         Ok(Config {
