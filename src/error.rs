@@ -17,4 +17,8 @@ pub enum Error {
     NoCall,
     #[error("Not in a server.")]
     NotInGuild,
+    #[error("No items in queue.")]
+    EmptyQueue,
+    #[error("Audio driver failed to initialize.")]
+    MissingDriver,
 }

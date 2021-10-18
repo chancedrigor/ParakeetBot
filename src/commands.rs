@@ -38,7 +38,7 @@ macro_rules! commands {
     }
 }
 
-commands![play, dc];
+commands![play, dc, skip];
 
 #[instrument(level = "debug", skip_all)]
 pub async fn register_global_commands(http: &Http) -> Result<()> {
