@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::Result;
 use std::env::var as std_var;
 
+#[derive(Debug)]
 pub struct Config {
     pub token: String,
     pub test_guild: Option<u64>,

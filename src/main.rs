@@ -2,6 +2,7 @@ mod bot;
 mod commands;
 mod config;
 mod error;
+mod youtube;
 
 use color_eyre::Result;
 use dotenv::dotenv;
@@ -34,7 +35,7 @@ fn install_tracing() {
     use tracing_subscriber::fmt;
     use tracing_subscriber::EnvFilter;
 
-    let fmt_layer = fmt::layer().with_target(false).pretty();
+    let fmt_layer = fmt::layer().with_target(true).pretty();
 
     let filter_layer = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new("info"))

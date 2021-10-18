@@ -4,9 +4,7 @@ use async_trait::async_trait;
 use enum_dispatch::enum_dispatch;
 use paste::paste;
 use serenity::{
-    builder::{
-        CreateApplicationCommand, CreateApplicationCommandOption, CreateInteractionResponse,
-    },
+    builder::{CreateApplicationCommand, CreateApplicationCommandOption},
     client::Context,
     http::Http,
     model::{
@@ -22,31 +20,27 @@ use strum_macros::EnumIter;
 use tracing::{debug, error, info};
 use tracing::{instrument, Instrument};
 
-mod dc;
-mod play;
-use dc::Dc;
-use play::Play;
-// macro_rules! commands {
-//     [$($module:tt),*] => {
-//         $(mod $module;)*
+macro_rules! commands {
+    [$($module:tt),*] => {
+        $(mod $module;)*
+        paste!{
+            $(use $module::[<$module:camel>];)*
+        }
 
-//         macro_rules! commands_const {
-//             () => {
-//                 paste! {vec![$(Box::new($module::[<$module:camel>])),*] }
-//             }
-//         }
-//     }
-// }
+        paste!{
+            #[enum_dispatch(SlashCommand)]
+            #[derive(Debug, EnumIter)]
+            enum Commands {
+                $([<$module:camel>]),*
+            }
 
-// commands![play, dc];
-
-#[enum_dispatch(SlashCommand)]
-#[derive(Debug, EnumIter)]
-enum Commands {
-    Play,
-    Dc,
+        }
+    }
 }
 
+commands![play, dc];
+
+#[instrument(level = "debug", skip_all)]
 pub async fn register_global_commands(http: &Http) -> Result<()> {
     let commands = ApplicationCommand::set_global_application_commands(http, |com| {
         com.set_application_commands(
@@ -64,6 +58,7 @@ pub async fn register_global_commands(http: &Http) -> Result<()> {
     Ok(())
 }
 
+#[instrument(level = "debug", skip_all)]
 pub async fn register_guild_commands(http: &Http, guild: PartialGuild) -> Result<()> {
     let commands = guild
         .set_application_commands(http, |com| {
@@ -118,7 +113,7 @@ pub async fn handle_command(ctx: Context, command: ApplicationCommandInteraction
             .kind(serenity::model::interactions::InteractionResponseType::ChannelMessageWithSource)
                 .interaction_response_data(|data| {
                     data
-                    .content(format!("{}", handle_error))
+                    .content(handle_error.to_string())
                     .allowed_mentions(|mentions| {
                         mentions.replied_user(true)
                     })
@@ -126,7 +121,20 @@ pub async fn handle_command(ctx: Context, command: ApplicationCommandInteraction
             })
             .await
         {
-            error!("{:?}", send_error);
+            // If a message was already sent, update it with an appended error
+            match command.get_interaction_response(&ctx.http).await {
+                Ok(m) => {
+                    if let Err(send_send_error) = command
+                        .edit_original_interaction_response(&ctx.http, |resp| {
+                            resp.content(format!("{}\n{}", m.content, handle_error))
+                        })
+                        .await
+                    {
+                        error!("{:?}", send_send_error)
+                    }
+                }
+                Err(_) => error!("{:?}", send_error),
+            };
         }
         error!("{:?}", handle_error)
     }

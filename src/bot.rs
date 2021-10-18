@@ -41,6 +41,7 @@ impl EventHandler for Handler {
     }
 }
 
+#[instrument(level = "debug")]
 pub async fn initialize(conf: Config) -> Result<Client> {
     let client = Client::builder(conf.token)
         .application_id(conf.app_id)
@@ -65,6 +66,7 @@ pub async fn initialize(conf: Config) -> Result<Client> {
     Ok(client)
 }
 
+#[instrument(level = "debug", skip(http))]
 async fn get_owner(http: &Http) -> Result<User> {
     let app_info = http.get_current_application_info().await?;
     info!("Bot owner is {}", app_info.owner.name);

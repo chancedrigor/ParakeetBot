@@ -1,14 +1,18 @@
 use crate::bot;
+use crate::youtube;
 use crate::Result;
 use async_trait::async_trait;
-use color_eyre::Help;
 use serenity::builder::CreateApplicationCommandOption;
 use serenity::client::Context;
 use serenity::model::interactions::application_command::ApplicationCommandInteraction;
 use serenity::model::interactions::application_command::ApplicationCommandInteractionDataOptionValue;
 use serenity::model::interactions::application_command::ApplicationCommandOptionType;
 use serenity::model::interactions::InteractionResponseType;
+use songbird::tracks::Track;
+use songbird::tracks::TrackHandle;
+use songbird::ytdl;
 use tracing::instrument;
+use url::Url;
 
 use super::SlashCommand;
 
@@ -28,8 +32,8 @@ impl SlashCommand for Play {
     fn options(&self) -> Vec<CreateApplicationCommandOption> {
         let url_opt = {
             CreateApplicationCommandOption::default()
-                .name("url")
-                .description("a link to a youtube video or an audio/video file")
+                .name("query")
+                .description("link to a file, youtube video, or a search query")
                 .kind(ApplicationCommandOptionType::String)
                 .required(true)
                 .to_owned()
@@ -56,31 +60,59 @@ impl SlashCommand for Play {
         //Join the user and get the channel if valid, otherwise send error msg
         let user_id = command.user.id;
         let call = bot::join_user(ctx, guild_id, user_id).await?;
-        let current_channel = call
-            .lock()
-            .await
-            .current_channel()
-            .expect("Not in a channel after joining one");
 
-        //Parse argument and try to play the audio clip
-        if let ApplicationCommandInteractionDataOptionValue::String(url) =
-            self.get_option(command, "url")?
-        {
-            let track = songbird::ytdl(&url).await.note(format!("url={}", &url))?;
-            call.lock().await.play_source(track);
-        }
-
-        //Send msg displaying the queued audio clip
-        //TODO Change this message
+        // Acknowledge the command and update it later (to avoid timeouts)
         command
             .create_interaction_response(&ctx.http, |resp| {
-                resp.kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|data| {
-                        data.content(format!("Joined <#{}>", current_channel))
-                    })
+                resp.kind(InteractionResponseType::DeferredChannelMessageWithSource)
             })
             .await?;
 
+        // Parse argument and try to play the audio clip
+        if let ApplicationCommandInteractionDataOptionValue::String(query) =
+            self.get_option(command, "query")?
+        {
+            // Process query and put result in the queue
+            let (track, track_handle) = process_query(query).await?;
+            call.lock().await.enqueue(track);
+
+            //Send msg displaying the queued audio clip
+            //TODO Improve message
+            command
+                .edit_original_interaction_response(&ctx.http, |resp| {
+                    resp.content(format!(
+                        "Added `{}` to the queue.",
+                        track_handle
+                            .metadata()
+                            .title
+                            .as_ref()
+                            .unwrap_or(&"???".to_string())
+                    ))
+                })
+                .await?;
+        }
+
         Ok(())
     }
+}
+
+#[instrument(level = "debug")]
+async fn process_query(query: String) -> Result<(Track, TrackHandle)> {
+    let input = match query.parse::<Url>() {
+        Ok(url) => ytdl(url).await?,
+        Err(_) => {
+            let results = youtube::search(query, 1).await?;
+            //If this panics, something has gone very wrong
+            let url: Url = results
+                .first()
+                .unwrap()
+                .source_url
+                .as_ref()
+                .unwrap()
+                .parse()?;
+            ytdl(url).await?
+        }
+    };
+
+    Ok(songbird::create_player(input))
 }
