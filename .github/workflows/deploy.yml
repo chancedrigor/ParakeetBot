@@ -27,14 +27,8 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v2
         
-      - name: Scout
-        run: ls -a
-
       - name: Build
         run: cargo build --release
-      
-      - name: Scout
-        run: ls -a
         
       - name: SCP to server
         uses: garygrossgarten/github-action-scp@release
