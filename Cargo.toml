@@ -1,26 +1,17 @@
 [package]
 name = "parakeet-bot"
-version = "0.1.0"
-edition = "2018"
+version = "0.2.0"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.51"
-color-eyre = "0.5.11"
-dotenv = "0.15.0"
-enum_dispatch = "0.3.7"
-lazy_static = "1.4.0"
-paste = "1.0.5"
-serde = "1.0.130"
-serde_json = "1.0.68"
-serenity = { version = "0.10.9", default-features = false, features = ["rustls_backend", "unstable_discord_api", "http", "builder", "cache", "model", "client", "utils", "voice"] }
-songbird = { version = "0.2.0", features = ["builtin-queue"] }
-strum = "0.21.0"
-strum_macros = "0.21.1"
-thiserror = "1.0.30"
-tokio = { version = "1.12.0", default-features = false, features = ["macros", "rt-multi-thread"] }
-tracing = "0.1.29"
-tracing-error = "0.1.2"
-tracing-subscriber = "0.2.25"
-url = "2.2.2"
+color-eyre = "0.6"
+dotenv = "0.15"
+poise = "0.4.1"
+songbird = { version = "0.3", features = ["yt-dlp", "builtin-queue"] }
+tokio = { version = "1.21", features = ["macros", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-error = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = { version = "2.3", features = ["serde"] }
