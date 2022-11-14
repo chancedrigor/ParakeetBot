@@ -22,6 +22,15 @@ pub fn install_tracing() -> Result<()> {
     Ok(())
 }
 
+fn ok_or_console<T, E>(res: std::result::Result<T, E>)
+where
+    E: std::error::Error,
+{
+    if let Err(e) = res {
+        error!("{e:#}")
+    }
+}
+
 #[instrument]
 pub fn log_to_user(err: FrameworkError<Data, Error>) -> BoxFuture<()> {
     Box::pin(async move {
@@ -35,9 +44,22 @@ pub fn log_to_user(err: FrameworkError<Data, Error>) -> BoxFuture<()> {
                             .ephemeral(true)
                     })
                     .await;
-                if let Err(e) = res {
-                    error!("{e:#}")
-                };
+                ok_or_console(res)
+            }
+            FrameworkError::CooldownHit {
+                remaining_cooldown,
+                ctx,
+            } => {
+                let cmd_name = &ctx.command().name;
+                let res = ctx
+                    .send(|b| {
+                        b.ephemeral(true).content(format!(
+                            "{cmd_name} is on cooldown for {:.2} s.",
+                            remaining_cooldown.as_secs_f32()
+                        ))
+                    })
+                    .await;
+                ok_or_console(res)
             }
             _ => error!("{err:#}"),
         }
