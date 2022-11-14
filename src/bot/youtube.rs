@@ -71,14 +71,3 @@ async fn _search(s: impl AsRef<str>) -> Result<Vec<SearchResult>> {
 
     Ok(results)
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[tokio::test]
-    async fn test_search() -> Result<()> {
-        let out = search("One last kiss", 5).await?;
-        println!("{out:?}");
-        Ok(())
-    }
-}
