@@ -26,14 +26,14 @@ jobs:
           
       - name: Cache
         uses: Swatinem/rust-cache@v2
-
+        
       - name: Build
         run: cargo build --release
         
       - name: SCP to server
         uses: garygrossgarten/github-action-scp@release
         with:
-          local: parakeet-bot/parakeet-bot/target/release/parakeet-bot
+          local: ./target/release/parakeet-bot
           remote: bot
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
