@@ -1,3 +1,4 @@
+pub use color_eyre::eyre::eyre;
 use poise::{BoxFuture, FrameworkError};
 pub use tracing::*;
 

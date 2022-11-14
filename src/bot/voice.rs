@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::eyre;
+use log::eyre;
 use tokio::sync::Mutex;
 // use poise::serenity_prelude as serenity;
 use tracing::instrument;
