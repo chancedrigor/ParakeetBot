@@ -8,7 +8,7 @@ use crate::{bot, log, Context, Error, Result};
 ///
 /// This won't do a search until the query is at least 2 characters long.
 #[instrument(err, skip(ctx))]
-#[poise::command(slash_command)]
+#[poise::command(slash_command, guild_only, guild_cooldown = 1)]
 pub async fn play(
     ctx: Context<'_>,
     #[description = "Youtube query or url"]
