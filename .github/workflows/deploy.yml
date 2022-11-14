@@ -12,35 +12,28 @@ on:
 jobs:
   build-deploy:
     
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       
       # Installs rust stable toolchain for ARM64
       - name: Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
-          override: true
-          default: true
+          targets: aarch64-unknown-linux-gnu
           
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target aarch64-unknown-linux-gnu
+        run: cargo build --release
         
       - name: SCP to server
         uses: garygrossgarten/github-action-scp@release
         with:
-          local: target/aarch64-unknown-linux-gnu/release/parakeet-bot
+          local: parakeet-bot/parakeet-bot/target/release/parakeet-bot
           remote: bot
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
