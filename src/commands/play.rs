@@ -16,13 +16,27 @@ pub async fn play(
     // query: Url,
     query: String,
 ) -> Result<()> {
-    let call = bot::voice::join_author(&ctx).await?; // Join the call if not in there
-    let reply = ctx.say(format!("Playing: {query}")).map_err(|e| e.into());
+    // Figure out if the `query` is an url or a query.
+    let source_url = match url::Url::parse(&query) {
+        Ok(u) => u,
+        Err(_) => {
+            let mut search_res = bot::youtube::search(&query, 1).await?;
+            let (_, u) = search_res.pop().take().unwrap();
+            u
+        }
+    };
+
+    let reply = ctx
+        .say(format!("Playing: {source_url}"))
+        .map_err(|e| e.into());
+
     let queque_audio = async {
-        let audio_source = songbird::ytdl(&query).await?;
+        let call = bot::voice::join_author(&ctx).await?; // Join the call if not in there
+        let audio_source = songbird::ytdl(&source_url).await?;
         call.lock().await.enqueue_source(audio_source);
         Ok::<(), Error>(())
     };
+
     // Concurrently send reply & queue song.
     let (_reply_handle, _) = tokio::try_join!(reply, queque_audio)?;
     Ok(())
@@ -40,6 +54,22 @@ async fn autocomplete_query(_ctx: Context<'_>, partial: &str) -> Vec<Autocomplet
             partial.len()
         );
         return Vec::new();
+    };
+
+    // If partial is an url
+    if let Ok(url) = url::Url::parse(partial) {
+        match bot::youtube::search_link(url).await {
+            Ok((name, u)) => {
+                return vec![AutocompleteChoice {
+                    name,
+                    value: u.into(),
+                }]
+            }
+            Err(e) => {
+                log::trace!("{e}");
+                return Vec::new();
+            }
+        };
     };
 
     log::trace!("Searching for '{partial}'.");

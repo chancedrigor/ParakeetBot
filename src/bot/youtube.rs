@@ -3,15 +3,29 @@ use url::Url;
 
 use crate::{log, Result};
 
-type SearchResults = Vec<(String, Url)>;
+/// A collection of youtube videos with formatted metadata and their links.
+type SearchResult = (String, Url);
 
-/// Gets the metadata of all the videos in a youtube search.
+/// Searches youtube for the given query and returns a collection `SearchResults`.
 /// `limit` is the max amount of results to get.
 #[instrument(fields(query=query.as_ref()))]
-pub async fn search(query: impl AsRef<str>, limit: u8) -> Result<SearchResults> {
-    let query = query.as_ref();
-    let uri = &format!("ytsearch{limit}:{query}");
+pub async fn search(query: impl AsRef<str>, limit: u8) -> Result<Vec<SearchResult>> {
+    let uri = &format!("ytsearch{limit}:{}", query.as_ref());
+    _search(uri).await
+}
 
+/// Searches youtube for the given link. The resulting vec always only has one element.
+#[instrument]
+pub async fn search_link(url: Url) -> Result<SearchResult> {
+    _search(url)
+        .await?
+        .first()
+        .ok_or_else(|| log::eyre!("No results found."))
+        .cloned()
+}
+
+/// Helper function that actually calls yt-dlp.
+async fn _search(s: impl AsRef<str>) -> Result<Vec<SearchResult>> {
     let format: &str = &[
         "%(title)",            // title
         ".50",                 // max title length
@@ -35,7 +49,7 @@ pub async fn search(query: impl AsRef<str>, limit: u8) -> Result<SearchResults> 
         format,
         "--print",
         "webpage_url",
-        uri,
+        s.as_ref(),
     ];
 
     let ytdlp_output = tokio::process::Command::new("yt-dlp")
@@ -45,7 +59,7 @@ pub async fn search(query: impl AsRef<str>, limit: u8) -> Result<SearchResults> 
         .await?;
 
     let out_string = String::from_utf8(ytdlp_output.stdout)?;
-    let mut results = SearchResults::new();
+    let mut results = Vec::new();
 
     let mut iter = out_string.split_terminator('\n');
     loop {
