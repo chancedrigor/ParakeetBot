@@ -4,7 +4,9 @@ use poise::{futures_util::TryFutureExt, AutocompleteChoice};
 // use url::Url;
 use crate::{bot, log, Context, Error, Result};
 
-/// Says 'hi'
+/// Plays from the given link or does a youtube search on the query.
+///
+/// This won't do a search until the query is at least 2 characters long.
 #[instrument(err, skip(ctx))]
 #[poise::command(slash_command)]
 pub async fn play(
