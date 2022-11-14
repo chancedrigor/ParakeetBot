@@ -20,7 +20,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       
     - name: Install toolchain
       uses: actions-rs/toolchain@v1
@@ -30,7 +30,7 @@ jobs:
         override: true
         
     - name: Cache
-      uses: Swatinem/rust-cache@v1
+      uses: Swatinem/rust-cache@v2
       
     - name: Cargo Build
       uses: actions-rs/cargo@v1
@@ -48,7 +48,7 @@ jobs:
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       
     - name: Install toolchain
       uses: actions-rs/toolchain@v1
@@ -58,7 +58,7 @@ jobs:
         override: true
         
     - name: Cache
-      uses: Swatinem/rust-cache@v1
+      uses: Swatinem/rust-cache@v2
     
     - name: Cargo Doc
       uses: actions-rs/cargo@v1

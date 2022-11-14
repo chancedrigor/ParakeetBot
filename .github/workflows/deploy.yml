@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       
       # Installs rust stable toolchain for ARM64
       - name: Toolchain
@@ -29,7 +29,7 @@ jobs:
           default: true
           
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Build
         uses: actions-rs/cargo@v1
