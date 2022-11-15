@@ -28,12 +28,12 @@ jobs:
         uses: Swatinem/rust-cache@v2
         
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --target aarch64-unknown-linux-gnu
         
       - name: SCP to server
         uses: garygrossgarten/github-action-scp@release
         with:
-          local: ./target/release/parakeet-bot
+          local: ./target/aarch64-unknown-linux-gnu/release/parakeet-bot
           remote: bot
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
