@@ -1,52 +1,30 @@
-use std::vec;
+use log::instrument;
 
-use super::{reply_simple_msg, SlashCommand};
-use crate::bot;
-use crate::error::Error;
-use crate::Result;
+use crate::{log, Context, Result};
+/// Skips the current audio track.
+#[instrument]
+#[poise::command(slash_command, guild_only, guild_cooldown = 2)]
+pub async fn skip(ctx: Context<'_>) -> Result<()> {
+    let manager = songbird::get(ctx.discord())
+        .await
+        .expect("expected songbird initialized");
+    let guild_id = ctx
+        .guild_id()
+        .ok_or_else(|| log::eyre!("Not in a guild."))?;
+    let call = manager
+        .get(guild_id)
+        .ok_or_else(|| log::eyre!("I'm not in a voice channel."))?
+        .clone();
 
-use async_trait::async_trait;
-
-#[derive(Debug, Default)]
-pub struct Skip;
-
-#[async_trait]
-impl SlashCommand for Skip {
-    fn name(&self) -> &str {
-        "skip"
-    }
-
-    fn description(&self) -> &str {
-        "skip the current item in the queue"
-    }
-
-    fn options(&self) -> Vec<serenity::builder::CreateApplicationCommandOption> {
-        vec![]
-    }
-
-    async fn slash_command_handle(
-        &self,
-        ctx: &serenity::client::Context,
-        command: &serenity::model::interactions::application_command::ApplicationCommandInteraction,
-    ) -> Result<()> {
-        let guild_id = match command.guild_id {
-            Some(id) => id,
-            None => return Err(Error::NotInGuild.into()),
-        };
-        let call = bot::get_call(ctx, guild_id).await?.clone();
-
-        let call_guard = call.lock().await;
-        let queue = call_guard.queue();
-        let current_item = queue.current();
-
-        match current_item {
-            Some(track) => {
-                let track_name = track.metadata().title.as_ref().unwrap();
-                queue.skip()?;
-                reply_simple_msg(ctx, command, format!("Skipped `{}`.", track_name)).await?;
-                Ok(())
-            }
-            None => return Err(Error::EmptyQueue.into()),
+    let lock = call.lock().await;
+    let queue = lock.queue();
+    match queue.current() {
+        None => Err(log::eyre!("Nothing to skip.")),
+        Some(curr_track) => {
+            let track_name = curr_track.metadata().title.clone().unwrap_or("???".into());
+            ctx.say(format!("Skipped '{track_name}'.")).await?;
+            queue.skip()?;
+            Ok(())
         }
     }
 }
