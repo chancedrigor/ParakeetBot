@@ -16,13 +16,13 @@ pub async fn skip(ctx: Context<'_>) -> Result<()> {
         .ok_or_else(|| log::eyre!("I'm not in a voice channel."))?
         .clone();
 
-    let lock = call.lock().await;
-    let queue = lock.queue();
+    let call_lock = call.lock().await;
+    let queue = call_lock.queue();
     match queue.current() {
         None => Err(log::eyre!("Nothing to skip.")),
         Some(curr_track) => {
             let track_name = curr_track.metadata().title.clone().unwrap_or("???".into());
-            ctx.say(format!("Skipped '{track_name}'.")).await?;
+            ctx.say(format!("Skipped `{track_name}`.")).await?;
             queue.skip()?;
             Ok(())
         }
