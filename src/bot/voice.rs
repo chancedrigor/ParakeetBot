@@ -148,8 +148,10 @@ struct StopOnDisconnect {
 #[async_trait]
 impl EventHandler for StopOnDisconnect {
     async fn act(&self, _ectx: &EventContext<'_>) -> Option<Event> {
-        let call_lock = self.call.lock().await;
+        log::info!("Stopping on disconnect!");
+        let mut call_lock = self.call.lock().await;
         call_lock.queue().stop();
+        call_lock.remove_all_global_events();
         Some(Event::Cancel)
     }
 }
