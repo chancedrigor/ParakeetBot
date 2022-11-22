@@ -58,7 +58,7 @@ pub async fn join_author(ctx: &Context<'_>) -> Result<Arc<Mutex<Call>>> {
         Event::Periodic(std::time::Duration::from_secs(5 * 60), None),
         empty_leaver,
     );
-    call_lock.add_global_event(Event::Core(songbird::CoreEvent::DriverConnect), dc_stop);
+    call_lock.add_global_event(Event::Core(songbird::CoreEvent::DriverDisconnect), dc_stop);
 
     Ok(call.clone())
 }
