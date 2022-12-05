@@ -7,7 +7,7 @@ use crate::{log, Context, Error, Result};
 #[instrument]
 #[poise::command(slash_command, guild_only)]
 pub async fn stop(ctx: Context<'_>) -> Result<()> {
-    let manager = songbird::get(ctx.discord())
+    let manager = songbird::get(ctx.serenity_context())
         .await
         .expect("expected songbird initialized");
     let guild_id = ctx

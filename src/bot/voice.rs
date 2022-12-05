@@ -11,7 +11,7 @@ use crate::{log, Context, Result};
 /// Joins the author's voice channel based on the given context.
 #[instrument(skip(ctx), fields(author=%ctx.author(), guild=?ctx.guild_id()))]
 pub async fn join_author(ctx: &Context<'_>) -> Result<Arc<Mutex<Call>>> {
-    let manager = songbird::get(ctx.discord())
+    let manager = songbird::get(ctx.serenity_context())
         .await
         .expect("expected songbird manager");
 
@@ -49,7 +49,7 @@ pub async fn join_author(ctx: &Context<'_>) -> Result<Arc<Mutex<Call>>> {
     let empty_leaver = EmptyChannelLeaver {
         call: call.clone(),
         channel_id,
-        ctx: ctx.discord().to_owned(),
+        ctx: ctx.serenity_context().to_owned(),
     };
 
     let dc_stop = StopOnDisconnect { call: call.clone() };

@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
         })
         .token(token)
         .intents(serenity::GatewayIntents::non_privileged())
-        .user_data_setup(|ctx, rdy, fw| {
+        .setup(|ctx, rdy, fw| {
             // Runs on startup
             Box::pin(async move {
                 // Simple message that logs when the bot has initialized

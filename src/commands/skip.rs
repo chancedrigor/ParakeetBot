@@ -1,11 +1,19 @@
+/*!
+ * Implements the `/skip` command.
+ *
+ * The bot will skip the current track and start playing the next one
+ * in the queue (if there is one).
+ */
+
 use log::instrument;
 
 use crate::{log, Context, Result};
+
 /// Skips the current audio track.
 #[instrument]
 #[poise::command(slash_command, guild_only, guild_cooldown = 2)]
 pub async fn skip(ctx: Context<'_>) -> Result<()> {
-    let manager = songbird::get(ctx.discord())
+    let manager = songbird::get(ctx.serenity_context())
         .await
         .expect("expected songbird initialized");
     let guild_id = ctx
