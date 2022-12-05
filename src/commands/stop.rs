@@ -1,3 +1,10 @@
+/*!
+ * Implements the `/stop` command.
+ *
+ * This stops all bot actions, clears the queue, and disconnects the
+ * bot from the current voice channel.
+ */
+
 use log::instrument;
 use poise::futures_util::TryFutureExt;
 

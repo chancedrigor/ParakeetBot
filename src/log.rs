@@ -1,10 +1,13 @@
-pub use color_eyre::eyre::eyre;
+/*! Bot logging (mostly re-exports and utility functions).*/
+
+pub use color_eyre::eyre::{eyre, WrapErr};
 use poise::{BoxFuture, FrameworkError};
 pub use tracing::*;
 
 use crate::{Data, Error, Result};
 
-pub fn install_tracing() -> Result<()> {
+/// Setup format layers, tracing subscribers, and installs tracing.
+pub(super) fn install_tracing() -> Result<()> {
     use tracing_error::ErrorLayer;
     use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -22,6 +25,7 @@ pub fn install_tracing() -> Result<()> {
     Ok(())
 }
 
+/// Unwraps a result; logs an error to console instead of panicking on error.
 fn ok_or_console<T, E>(res: std::result::Result<T, E>)
 where
     E: std::error::Error,
@@ -31,6 +35,7 @@ where
     }
 }
 
+/// Logs user errors back to users as an ephemeral message.
 #[instrument]
 pub fn log_to_user(err: FrameworkError<Data, Error>) -> BoxFuture<()> {
     Box::pin(async move {
@@ -63,5 +68,5 @@ pub fn log_to_user(err: FrameworkError<Data, Error>) -> BoxFuture<()> {
             }
             _ => error!("{err:#}"),
         }
-    }) // ACTUALLY IMPLEMENT THIS
+    })
 }

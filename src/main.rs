@@ -1,23 +1,29 @@
+//! * Parakeet-bot is a simple Discord bot meant mostly for single-server use.
+#![warn(nonstandard_style)]
+#![warn(clippy::missing_docs_in_private_items)]
+
 use poise::serenity_prelude as serenity;
 use songbird::SerenityInit;
 mod bot;
 mod commands;
 mod log;
 
-pub type Result<T> = color_eyre::eyre::Result<T>;
-pub type Error = color_eyre::eyre::ErrReport;
+use color_eyre::eyre::{ErrReport as Error, Result};
 
+/// The data kept between shards (which is nothing atm)
 #[derive(Debug)]
 pub struct Data;
 
-type Context<'a> = poise::Context<'a, Data, Error>;
+/// Type alias for the only [`Context`](poise::Context) type used in this bot.
+/// This is purely for convenience.
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 /// Returns the value of an enviromental variable.
 /// Additionally, attaches the variable's name to any errors.
 fn var(varname: &str) -> Result<String> {
     use std::env::var;
 
-    use color_eyre::eyre::WrapErr;
+    use log::WrapErr;
     var(varname).wrap_err_with(|| format!("Env Var: '{varname}"))
 }
 

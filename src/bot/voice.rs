@@ -1,3 +1,8 @@
+//! Functionality for joining voice calls and automatically adding event handling.
+//!
+//! Currently the bot listens for idle (empty channel) every 5 minutes and disconnect events.
+//! - On idle, the bot stops and deletes the queues, then disconnects.
+//! - On disconnect, the bot stops, deletes queues, and removes all global event handlers.
 use std::sync::Arc;
 
 use log::eyre;
@@ -8,7 +13,7 @@ use tracing::instrument;
 
 use crate::{log, Context, Result};
 
-/// Joins the author's voice channel based on the given context.
+/// Join the author's voice channel based on the given context and register global songbird events.
 #[instrument(skip(ctx), fields(author=%ctx.author(), guild=?ctx.guild_id()))]
 pub async fn join_author(ctx: &Context<'_>) -> Result<Arc<Mutex<Call>>> {
     let manager = songbird::get(ctx.serenity_context())
@@ -141,7 +146,9 @@ impl EventHandler for EmptyChannelLeaver {
     }
 }
 
+/// On disconnect, stop and delete queue, and remove all global events.
 struct StopOnDisconnect {
+    /// Reference to the call that will be dropped.
     call: Arc<Mutex<Call>>,
 }
 

@@ -1,12 +1,15 @@
+//! * Functionality for interfacing with youtube (e.g. searches).
+
 use log::instrument;
 use url::Url;
 
 use crate::{log, Result};
 
-/// A collection of youtube videos with formatted metadata and their links.
+/// A youtube video with formatted metadata and its url.
 type SearchResult = (String, Url);
 
-/// Searches youtube for the given query and returns a collection `SearchResults`.
+/// Searches youtube for the given query.
+///
 /// `limit` is the max amount of results to get.
 #[instrument(fields(query=query.as_ref()))]
 pub async fn search(query: impl AsRef<str>, limit: u8) -> Result<Vec<SearchResult>> {
@@ -14,7 +17,7 @@ pub async fn search(query: impl AsRef<str>, limit: u8) -> Result<Vec<SearchResul
     _search(uri).await
 }
 
-/// Searches youtube for the given link. The resulting vec always only has one element.
+/// Searches youtube for the given link.
 #[instrument]
 pub async fn search_link(url: Url) -> Result<SearchResult> {
     _search(url)
