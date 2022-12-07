@@ -56,7 +56,7 @@ async fn _search(s: impl AsRef<str>) -> Result<Vec<SearchResult>> {
     ];
 
     let ytdlp_output = tokio::process::Command::new("yt-dlp")
-        .args(&ytdlp_args)
+        .args(ytdlp_args)
         .stdin(std::process::Stdio::null())
         .output()
         .await?;
@@ -65,11 +65,10 @@ async fn _search(s: impl AsRef<str>) -> Result<Vec<SearchResult>> {
     let mut results = Vec::new();
 
     let mut iter = out_string.split_terminator('\n');
-    loop {
-        match (iter.next(), iter.next()) {
-            (Some(k), Some(v)) => results.push((k.to_string(), v.parse()?)),
-            _ => break,
-        };
+
+    // Iterate until there are no more matched pairs of (metadata, url).
+    while let (Some(k), Some(v)) = (iter.next(), iter.next()) {
+        results.push((k.to_string(), v.parse()?));
     }
 
     Ok(results)

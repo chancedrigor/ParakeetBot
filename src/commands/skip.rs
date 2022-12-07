@@ -29,7 +29,11 @@ pub async fn skip(ctx: Context<'_>) -> Result<()> {
     match queue.current() {
         None => Err(log::eyre!("Nothing to skip.")),
         Some(curr_track) => {
-            let track_name = curr_track.metadata().title.clone().unwrap_or("???".into());
+            let track_name = curr_track
+                .metadata()
+                .title
+                .clone()
+                .unwrap_or_else(|| "???".into());
             ctx.say(format!("Skipped `{track_name}`.")).await?;
             queue.skip()?;
             Ok(())
