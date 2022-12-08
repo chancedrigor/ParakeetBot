@@ -43,8 +43,9 @@ async fn autocomplete_query(_ctx: Context<'_>, partial: &str) -> Vec<Autocomplet
     };
 
     log::trace!("Searching for '{partial}'.");
+    let res = bot::search(partial, 8).await;
+    log::trace!("Search result: {res:?}");
 
-    let res = bot::search(partial, 5).await;
     match res {
         Ok(search_res) => search_res
             .into_iter()
