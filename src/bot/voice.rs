@@ -1,17 +1,21 @@
+//! Functionality for joining voice calls and automatically adding event handling.
+//!
+//! Currently the bot listens for idle (empty channel) every 5 minutes and disconnect events.
+//! - On idle, the bot stops and deletes the queues, then disconnects.
+//! - On disconnect, the bot stops, deletes queues, and removes all global event handlers.
 use std::sync::Arc;
 
-use log::eyre;
+use log::{eyre, instrument};
 use poise::{async_trait, serenity_prelude as serenity};
 use songbird::{Call, Event, EventContext, EventHandler};
 use tokio::sync::Mutex;
-use tracing::instrument;
 
 use crate::{log, Context, Result};
 
-/// Joins the author's voice channel based on the given context.
+/// Join the author's voice channel based on the given context and register global songbird events.
 #[instrument(skip(ctx), fields(author=%ctx.author(), guild=?ctx.guild_id()))]
 pub async fn join_author(ctx: &Context<'_>) -> Result<Arc<Mutex<Call>>> {
-    let manager = songbird::get(ctx.discord())
+    let manager = songbird::get(ctx.serenity_context())
         .await
         .expect("expected songbird manager");
 
@@ -46,10 +50,9 @@ pub async fn join_author(ctx: &Context<'_>) -> Result<Arc<Mutex<Call>>> {
     let (call, join_result) = manager.join(guild_id, channel_id).await;
     join_result?;
 
-    let empty_leaver = EmptyChannelLeaver {
+    let empty_leaver = StopOnIdle {
         call: call.clone(),
-        channel_id,
-        ctx: ctx.discord().to_owned(),
+        ctx: ctx.serenity_context().to_owned(),
     };
 
     let dc_stop = StopOnDisconnect { call: call.clone() };
@@ -102,17 +105,26 @@ macro_rules! unwrap_result_cancel {
     };
 }
 
-struct EmptyChannelLeaver {
+/// On idle (i.e. in an empty call), stop all actions and leave the call.
+struct StopOnIdle {
+    /// Serenity context, needed to access [Cache and Http](serenity::http::CacheHttp).
     ctx: serenity::Context,
-    channel_id: serenity::ChannelId,
+    /// Reference to the call that will be dropped.
     call: Arc<Mutex<Call>>,
 }
 
 #[async_trait]
-impl EventHandler for EmptyChannelLeaver {
+impl EventHandler for StopOnIdle {
     async fn act(&self, _ectx: &EventContext<'_>) -> Option<Event> {
+        let channel_id: serenity::ChannelId = {
+            let opt_chan = self.call.lock().await.current_channel();
+            unwrap_option_cancel!(opt_chan, "Expected to be in a channel")
+                .0 // songbird::ChannelId -> u64
+                .into() // u64 -> serenity::ChannelId
+        };
+
         let channel = unwrap_result_cancel!(
-            self.channel_id.to_channel(&self.ctx).await,
+            channel_id.to_channel(&self.ctx).await,
             e,
             "Could not find channel: {e:#?}"
         );
@@ -141,7 +153,9 @@ impl EventHandler for EmptyChannelLeaver {
     }
 }
 
+/// On disconnect, stop and delete queue, and remove all global events.
 struct StopOnDisconnect {
+    /// Reference to the call that will be dropped.
     call: Arc<Mutex<Call>>,
 }
 

@@ -8,7 +8,8 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6"
 dotenv = "0.15"
-poise = "0.4.1"
+poise = "0.5"
+serde = { version = "1.0", features = ["derive"] }
 songbird = { version = "0.3", features = ["yt-dlp", "builtin-queue"] }
 tokio = { version = "1.21", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"

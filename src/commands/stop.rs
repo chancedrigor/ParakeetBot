@@ -1,3 +1,10 @@
+/*!
+ * Implements the `/stop` command.
+ *
+ * This stops all bot actions, clears the queue, and disconnects the
+ * bot from the current voice channel.
+ */
+
 use log::instrument;
 use poise::futures_util::TryFutureExt;
 
@@ -7,7 +14,7 @@ use crate::{log, Context, Error, Result};
 #[instrument]
 #[poise::command(slash_command, guild_only)]
 pub async fn stop(ctx: Context<'_>) -> Result<()> {
-    let manager = songbird::get(ctx.discord())
+    let manager = songbird::get(ctx.serenity_context())
         .await
         .expect("expected songbird initialized");
     let guild_id = ctx
