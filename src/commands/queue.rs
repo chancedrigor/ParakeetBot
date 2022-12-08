@@ -26,8 +26,15 @@ pub async fn queue(ctx: Context<'_>) -> Result<()> {
     let call_lock = call.lock().await;
     let queue: bot::Queue = call_lock.queue().into();
 
-    ctx.send(|b| b.embed(|e| e.description(format!("{queue}"))))
-        .await?;
+    let guild_name = guild_id.name(ctx).unwrap_or_else(|| "Unknown".to_string());
+
+    ctx.send(|b| {
+        b.embed(|e| {
+            e.description(format!("{queue}"))
+                .title(format!("{guild_name} queue"))
+        })
+    })
+    .await?;
 
     Ok(())
 }

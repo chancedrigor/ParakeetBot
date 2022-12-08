@@ -14,8 +14,15 @@ pub struct Queue<'a>(&'a TrackQueue);
 impl Display for Queue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let tracks = self.0.current_queue();
-        for (i, track) in tracks.into_iter().map(Track::from).enumerate() {
-            writeln!(f, "`{index}.` {track}", index = i + 1)?;
+
+        // Display "Empty Queue" if empty
+        // Otherwise, enumerate the track titles in order of queue
+        if tracks.is_empty() {
+            write!(f, "Empty Queue")?;
+        } else {
+            for (i, track) in tracks.into_iter().map(Track::from).enumerate() {
+                writeln!(f, "`{index}.` {track}", index = i + 1)?;
+            }
         }
         Ok(())
     }
