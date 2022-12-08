@@ -29,18 +29,26 @@ pub async fn search_link(url: Url) -> Result<SearchResult> {
 
 /// Helper function that actually calls yt-dlp.
 async fn _search(s: impl AsRef<str>) -> Result<Vec<SearchResult>> {
+    // Discord enforces a 100 char limit so we budget
+    // Format is title[duration](views)-channel
     let format: &str = &[
-        "%(title)",            // title
-        ".50",                 // max title length
-        "s",                   // convert to string
-        " [",                  // aesthetics
-        "%(duration_string)s", // duration, convert to string
-        "] - '",               // aesthetics
-        "%(channel)s ",        // uploader, convert to string
-        "' ",                  // aesthetics
-        "%(view_count)",       // view_count
-        "D",                   // add decimal suffixes (e.g 10M, 200k, ...)
-        " views",              // to be extra clear on the above
+        // Title, at most 60 chars
+        "%(title)",
+        ".60",
+        "s",
+        // Duration in '[HH:MM:SS]' format, at most 10 chars
+        "[",
+        "%(duration_string)s",
+        "]",
+        // View count in '(dddc views)' format, at most 12 chars
+        "(",
+        "%(view_count)",
+        "D", // add decimal suffixes (e.g 10M, 200k, ...)
+        " views",
+        ")",
+        // Channel name in '-name' format, max 15 chars
+        "-",
+        "%(channel).14s",
     ]
     .concat();
 
@@ -61,7 +69,9 @@ async fn _search(s: impl AsRef<str>) -> Result<Vec<SearchResult>> {
         .output()
         .await?;
 
+    // Convert `Output` into a string
     let out_string = String::from_utf8(ytdlp_output.stdout)?;
+    // Initialize accumulator for search results
     let mut results = Vec::new();
 
     let mut iter = out_string.split_terminator('\n');
