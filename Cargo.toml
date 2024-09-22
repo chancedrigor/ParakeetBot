@@ -1,18 +1,32 @@
 [package]
 name = "parakeet-bot"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
 [dependencies]
-color-eyre = "0.6"
-dotenv = "0.15"
-poise = "0.5"
+async-trait = "0.1.82"
+bon = "2.3"
+delegate = "0.13.0"
+futures = "0.3.30"
+itertools = "0.13.0"
+poise = "0.6"
+reqwest = "0.11"
 serde = { version = "1.0", features = ["derive"] }
-songbird = { version = "0.3.2", features = ["yt-dlp", "builtin-queue"] }
-tokio = { version = "1.21", features = ["macros", "rt-multi-thread"] }
+serde_path_to_error = "0.1.16"
+songbird = { version = "0.4", features = ["builtin-queue", "serenity", "simd-json"] }
+symphonia = { version = "0.5.4", features = ["all"] }
+thiserror = "1.0.63"
+tokio = { version = "1.40.0", features = ["macros", "rt-multi-thread"] }
+toml = "0.8.19"
 tracing = "0.1"
-tracing-error = "0.2"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-url = { version = "2.3", features = ["serde"] }
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["chrono"] }
+url = "2.5"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3

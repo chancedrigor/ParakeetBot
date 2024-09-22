@@ -1,159 +1,201 @@
-/*!
- * Implements the `/play` command.
- *
- * This command takes one argument `query` which can be a search query or an url.
- * In either case, the bot will try to autocomplete the search.
- */
+//! Implements the `/play` command.
+//!
+//! This command takes one argument `query` which can be a search query or an url.
+//! In either case, the bot will try to autocomplete the search.
+//!
 
-use log::instrument;
-use poise::{futures_util::TryFutureExt, AutocompleteChoice};
-use url::Url;
+use std::str::FromStr;
+use std::time::Duration;
 
-use crate::{bot, log, Context, Error, Result};
+use poise::CreateReply;
+use serenity::AutocompleteChoice;
+use serenity::CreateEmbed;
+use songbird::input::AuxMetadata;
+use songbird::input::Input;
+use songbird::input::YoutubeDl;
+use tokio::time::sleep;
+use tracing::instrument;
 
-/// The input argument to a `/play` command.
+use crate::data::GetData;
+use crate::error::UserError;
+use crate::lib;
+use crate::lib::call;
+use crate::lib::youtube;
+use crate::serenity;
+use crate::Context;
+use crate::ParakeetError;
+use youtube::SearchResult;
 
-#[instrument(skip(_ctx), level = "debug")]
-// async fn autocomplete_query(_ctx: Context<'_>, partial: &str) -> Vec<AutocompleteChoice<String>> {
-async fn autocomplete_query(_ctx: Context<'_>, partial: &str) -> Vec<AutocompleteChoice<Query>> {
-    let min_partial_len = 2; // Min length before doing actual searches
+/// Types of queries that are derived from user
+#[derive(Clone, Debug)]
+enum Query {
+    /// A fully qualified url to a youtube video
+    YoutubeURL(String),
+    /// A string query for a youtube search
+    YoutubeSearch(String),
+    /// A fully qualified url to something other than youtube, might not work
+    Other(String),
+    /// Explicitly marked as not supported
+    Unsupported,
+}
 
-    if partial.len() <= min_partial_len {
-        log::trace!(
-            "Skipping search, query length ({}) less than min ({min_partial_len}).",
-            partial.len()
-        );
-        return Vec::new();
-    };
+impl FromStr for Query {
+    type Err = ParakeetError;
 
-    // If partial is an url
-    if let Ok(url) = url::Url::parse(partial) {
-        match bot::search_link(url).await {
-            Ok((name, u)) => {
-                return vec![AutocompleteChoice {
-                    name,
-                    value: Query::Full(u),
-                }]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Check if input is an url
+        if let Ok(url) = s.parse::<url::Url>() {
+            // Check the domain
+            match url.domain() {
+                Some("www.youtube.com" | "www.youtu.be") => Ok(Query::YoutubeURL(s.to_string())),
+                Some("open.spotify.com") | Some("spotify.com") => Ok(Query::Unsupported),
+                Some(_) | None => Ok(Query::Other(s.to_string())),
             }
-            Err(e) => {
-                log::trace!("{e}");
-                return Vec::new();
-            }
-        };
-    };
-
-    log::trace!("Searching for '{partial}'.");
-    let res = bot::search(partial, 8).await;
-
-    match res {
-        Ok(search_res) => search_res
-            .into_iter()
-            .map(|(name, url)| AutocompleteChoice {
-                name,
-                value: Query::Full(url),
-            })
-            .collect(),
-        Err(e) => {
-            log::error!("{e}");
-            Vec::new()
+        } else {
+            // If not url, input is a youtube query
+            Ok(Query::YoutubeSearch(s.to_string()))
         }
     }
 }
 
+/// Autocompletes 'partial' arguments in a play command.
+/// If `input` is a valid url, this will autocomplete into one choice that links to that url
+/// If `input` is a string query, this will autocomplete into multiple choices, each corresponding
+/// to unique youtube search options.
+#[instrument(skip(_ctx))]
+async fn autocomplete_query(_ctx: Context<'_>, input: &str) -> Vec<AutocompleteChoice> {
+    // Don't start until input isn't empty.
+    if input.is_empty() {
+        return vec![];
+    };
+
+    // Small delay to prevent unnecessary autocompletions.
+    sleep(Duration::from_millis(600)).await;
+
+    tracing::debug!("Autocompleting for '{input}'");
+
+    // If input is an url, autocomplete one choice
+    if let Ok(url) = url::Url::parse(input) {
+        match youtube::search_link(url).await {
+            Ok(SearchResult { name, url }) => {
+                return vec![AutocompleteChoice::new(name, url)];
+            }
+            Err(e) => {
+                tracing::error!("{input} was a valid URL but encountered:\n{e}");
+            }
+        };
+    };
+
+    match youtube::search_query(input, 5).await {
+        Ok(results) => {
+            return results
+                .into_iter()
+                .map(|SearchResult { name, url }| AutocompleteChoice::new(name, url))
+                .collect()
+        }
+        Err(e) => {
+            tracing::error!("Tried to yt-search for '{input} but encountered:\n{e}");
+        }
+    };
+
+    vec![]
+}
+
 /// Plays from the given link or does a youtube search on the query.
-///
-/// This won't do a search until the query is at least 2 characters long.
-#[instrument(err, skip(ctx))]
+#[instrument(skip(ctx))]
 #[poise::command(slash_command, guild_only)]
 pub async fn play(
     ctx: Context<'_>,
     #[description = "Youtube query or url"]
     #[autocomplete = "autocomplete_query"]
     query: Query,
-) -> Result<()> {
-    let source_url = query.try_into_url().await?;
-
-    let reply = ctx
-        .say(format!("Playing: {source_url}"))
-        .map_err(|e| e.into());
-
-    let queque_audio = async {
-        let call = bot::join_author(&ctx).await?; // Join the call if not in there
-        let audio_source = songbird::ytdl(&source_url).await?;
-
-        call.lock().await.enqueue_source(audio_source);
-        Ok::<(), Error>(())
+) -> Result<(), ParakeetError> {
+    // Make a yt-search if we don't have an url
+    let input_url = match query {
+        Query::YoutubeURL(url) | Query::Other(url) => url,
+        Query::YoutubeSearch(q) => {
+            let search_result = youtube::search_best(q).await?;
+            search_result.url
+        }
+        Query::Unsupported => Err(UserError::UnsupportedPlatform)?,
     };
 
-    // Concurrently send reply & queue song.
-    let (_reply_handle, _) = tokio::try_join!(reply, queque_audio)?;
+    tracing::debug!("Resolved Url: {input_url}");
+
+    let http_client = ctx.http_client().await;
+
+    // Join the user's call
+    let call = call::join_author(&ctx).await?;
+
+    ctx.defer().await?;
+
+    // Get input and it's metadata.
+    let mut input: Input = YoutubeDl::new(http_client, input_url.clone()).into();
+    let meta = input.aux_metadata().await?;
+
+    let _handle = call::enqueue(&ctx, &call, input).await?;
+
+    // Build the reply and send it
+    let reply = play_reply(&meta);
+    ctx.send(reply).await?;
+
     Ok(())
 }
 
-use query::Query;
+/// Plays from the given link or does a youtube search on the query.
+#[instrument(skip(ctx))]
+#[poise::command(slash_command, guild_only, rename = "playfile")]
+pub async fn play_file(
+    ctx: Context<'_>,
+    #[description = "Attachment or file."] file: serenity::Attachment,
+) -> Result<(), ParakeetError> {
+    let input_url = file.url;
 
-/// Implements a partial or fully resolved query
-mod query {
-    use poise::{async_trait, serenity_prelude as serenity, SlashArgError};
-    use serde::Serialize;
+    tracing::debug!("Url: {input_url}");
 
-    use super::*;
+    let http_client = ctx.http_client().await;
 
-    /// A query, this type is returned by invokations of the `/play` command.
-    #[derive(Debug, Clone, Serialize)]
-    #[serde(untagged)]
-    pub enum Query {
-        /// A fully resolved query.
-        Full(Url),
-        /// An unresolved search query.
-        ///
-        /// This occurs when autocomplete is not able to resolve the query in time.
-        /// Usually because the user entered the command quickly after typing it.
-        ///
-        /// The query must be resolved before playing anything.
-        Partial(String),
+    // Join the user's call
+    let call = call::join_author(&ctx).await?;
+
+    // Get input and it's metadata.
+    let mut input: Input = YoutubeDl::new(http_client, input_url.clone()).into();
+    let meta = input.aux_metadata().await?;
+
+    let _handle = call::enqueue(&ctx, &call, input).await?;
+
+    // Build the reply and send it
+    let reply = play_reply(&meta);
+    ctx.send(reply).await?;
+
+    Ok(())
+}
+
+/// Create a reply based on the metadata of the input.
+fn play_reply(meta: &AuxMetadata) -> CreateReply {
+    let title = meta.title.clone().unwrap_or("<MISSING TITLE>".to_string());
+
+    let mut embed = CreateEmbed::default().title(title);
+
+    // Make title link to url if available.
+    if let Some(url) = meta.source_url.clone() {
+        embed = embed.url(url);
     }
 
-    #[async_trait]
-    impl poise::SlashArgument for Query {
-        fn choices() -> Vec<poise::CommandParameterChoice> {
-            Vec::new()
-        }
-
-        fn create(builder: &mut serenity::CreateApplicationCommandOption) {
-            builder.kind(serenity::CommandOptionType::String);
-        }
-
-        async fn extract(
-            _ctx: &serenity::Context,
-            _interaction: poise::ApplicationCommandOrAutocompleteInteraction<'_>,
-            value: &serenity::json::Value,
-        ) -> Result<Self, SlashArgError> {
-            let string = value
-                .as_str()
-                .ok_or(SlashArgError::CommandStructureMismatch("expected string"))?;
-            match Url::parse(string) {
-                Ok(u) => Ok(Query::Full(u)),
-                Err(_) => Ok(Query::Partial(string.to_string())),
-            }
-        }
+    if let Some(thumbnail) = meta.thumbnail.clone() {
+        embed = embed.thumbnail(thumbnail)
     }
 
-    impl Query {
-        /// Try to convert to [url::Url].
-        ///
-        /// Does a search on a partial query, returning the first result.
-        pub async fn try_into_url(self) -> Result<Url> {
-            match self {
-                Query::Full(u) => Ok(u),
-                Query::Partial(query) => {
-                    let search = bot::search(&query, 1).await?;
-                    match search.first() {
-                        None => Err(log::eyre!("No search results found for : '{query}'")),
-                        Some((_, u)) => Ok(u.to_owned()),
-                    }
-                }
-            }
-        }
+    // Add various fields if they are available.
+    if let Some(dur) = meta.duration {
+        embed = embed.field("Duration", lib::format_duration(&dur), true);
     }
+    if let Some(date) = meta.date.clone() {
+        embed = embed.field("Date", date, true);
+    }
+    if let Some(channel) = meta.channel.clone() {
+        embed = embed.field("Channel", channel, true);
+    }
+
+    CreateReply::default().embed(embed)
 }

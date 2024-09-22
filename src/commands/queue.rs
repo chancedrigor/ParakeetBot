@@ -1,40 +1,46 @@
-/*!
- * Implements the `/queue` command.
- *
- * The bot responds with an embed displaying all the songs in the queue.
- */
+//! Implements the `/queue` command.
+//!
+//! The bot responds with an embed displaying all the songs in the queue.
 
-use log::instrument;
+use poise::CreateReply;
+use serenity::CreateEmbed;
+use tracing::instrument;
 
-use crate::{bot, log, Context, Result};
+use crate::data::GetData;
+use crate::data::TrackMetadata;
+use crate::error::UserError;
+use crate::serenity;
+use crate::Context;
+use crate::ParakeetError;
 
 /// Show what's coming up
 #[instrument]
 #[poise::command(slash_command, guild_only, guild_cooldown = 2)]
-pub async fn queue(ctx: Context<'_>) -> Result<()> {
-    let manager = songbird::get(ctx.serenity_context())
-        .await
-        .expect("expected songbird initialized");
-    let guild_id = ctx
-        .guild_id()
-        .ok_or_else(|| log::eyre!("Not in a guild."))?;
-    let call = manager
-        .get(guild_id)
-        .ok_or_else(|| log::eyre!("I'm not in a voice channel."))?
-        .clone();
+pub async fn queue(ctx: Context<'_>) -> Result<(), ParakeetError> {
+    let guild = ctx.guild().ok_or(UserError::NotInGuild)?.name.clone();
 
-    let call_lock = call.lock().await;
-    let queue: bot::Queue = call_lock.queue().into();
+    let queue_meta = {
+        let guild_data = ctx.guild_data().await?;
+        let lock = guild_data.lock().await;
+        lock.queue_metadata.clone()
+    };
 
-    let guild_name = guild_id.name(ctx).unwrap_or_else(|| "Unknown".to_string());
+    let mut embed = CreateEmbed::default()
+        .description(queue_meta.display_string().await)
+        .title(format!("{guild} Queue"));
 
-    ctx.send(|b| {
-        b.embed(|e| {
-            e.description(format!("{queue}"))
-                .title(format!("{guild_name} queue"))
-        })
-    })
-    .await?;
+    // Add thumbnail if front has a thumbnail.
+    if let Some(TrackMetadata {
+        thumbnail_url: Some(url),
+        ..
+    }) = queue_meta.front().await
+    {
+        embed = embed.thumbnail(url)
+    };
+
+    let reply = CreateReply::default().embed(embed);
+
+    ctx.send(reply).await?;
 
     Ok(())
 }
