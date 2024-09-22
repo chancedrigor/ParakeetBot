@@ -44,6 +44,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSHKEY}}
           port: ${{ secrets.PORT }}
+          overwrite: true
 
       - name: Restart Service
         uses: appleboy/ssh-action@v1.0.3
