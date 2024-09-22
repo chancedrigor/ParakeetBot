@@ -31,6 +31,8 @@ jobs:
         
     - name: Cache
       uses: Swatinem/rust-cache@v2
+
+    - uses: rui314/setup-mold@v1
       
     - name: Cargo Build
       uses: actions-rs/cargo@v1
