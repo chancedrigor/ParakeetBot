@@ -1,44 +1,24 @@
-/*!
- * Implements the `/stop` command.
- *
- * This stops all bot actions, clears the queue, and disconnects the
- * bot from the current voice channel.
- */
+//! Implements the `/stop` command.
+//!
+//! This stops all bot actions, clears the queue, and disconnects the
+//! bot from the current voice channel.
 
-use log::instrument;
-use poise::futures_util::TryFutureExt;
+use tracing::instrument;
 
-use crate::{log, Context, Error, Result};
+use crate::lib;
+use crate::Context;
+use crate::ParakeetError;
 
 /// Stop the bot, delete the queue, and leave the call.
 #[instrument]
 #[poise::command(slash_command, guild_only)]
-pub async fn stop(ctx: Context<'_>) -> Result<()> {
-    let manager = songbird::get(ctx.serenity_context())
-        .await
-        .expect("expected songbird initialized");
-    let guild_id = ctx
-        .guild_id()
-        .ok_or_else(|| log::eyre!("Not in a guild."))?;
-    let call = manager
-        .get(guild_id)
-        .ok_or_else(|| log::eyre!("I'm not in a voice channel."))?
-        .clone();
+pub async fn stop(ctx: Context<'_>) -> Result<(), ParakeetError> {
+    let call = lib::call::get_call(&ctx).await?;
+    let mut call = call.lock().await;
 
-    let mut call_lock = call.lock().await;
-
-    // Check if in a voice channel
-    if call_lock.current_channel().is_none() {
-        return Err(log::eyre!("I'm not in a voice channel."));
-    }
-
-    let leave = call_lock.leave().map_err(|e| -> Error { e.into() });
-    let reply = ctx.say("Buh bye!").map_err(|e| -> Error { e.into() });
-    tokio::try_join!(leave, reply)?;
-
-    // Stop everything
-    let queue = call_lock.queue();
-    queue.stop();
-
+    tracing::info!("Stopping the queue.");
+    call.queue().stop();
+    call.leave().await?;
+    ctx.reply("Queue deleted.").await?;
     Ok(())
 }
