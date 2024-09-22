@@ -42,7 +42,7 @@ jobs:
           target: bot
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
-          privateKey: ${{ secrets.SSHKEY}}
+          key: ${{ secrets.SSHKEY}}
           port: ${{ secrets.PORT }}
 
       - name: Restart Service
@@ -50,6 +50,6 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
-          privateKey: ${{ secrets.SSHKEY}}
+          key: ${{ secrets.SSHKEY}}
           port: ${{ secrets.PORT }}
           script: python3 restart.py
