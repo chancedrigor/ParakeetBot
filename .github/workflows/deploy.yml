@@ -36,20 +36,20 @@ jobs:
         run: cross build --release --target aarch64-unknown-linux-gnu
         
       - name: SCP to server
-        uses: garygrossgarten/github-action-scp@release
+        uses: appleboy/scp-action@v0.1.7
         with:
-          local: ./target/aarch64-unknown-linux-gnu/release/parakeet-bot
-          remote: bot
+          source: ./target/aarch64-unknown-linux-gnu/release/parakeet-bot
+          target: bot
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           privateKey: ${{ secrets.SSHKEY}}
           port: ${{ secrets.PORT }}
 
       - name: Restart Service
-        uses: garygrossgarten/github-action-ssh@release
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           privateKey: ${{ secrets.SSHKEY}}
           port: ${{ secrets.PORT }}
-          command: python3 restart.py
+          script: python3 restart.py
